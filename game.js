@@ -1,330 +1,409 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arif Football</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>ARIF FOOTBALL</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+html,body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#111;
+  font-family:Arial,sans-serif;
+}
+
+canvas{
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none;
+}
+
+#score{
+  position:fixed;
+  top:12px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:10;
+  background:rgba(0,0,0,.75);
+  color:white;
+  padding:10px 22px;
+  border-radius:15px;
+  font-size:20px;
+  font-weight:bold;
+}
+
+#info{
+  position:fixed;
+  bottom:15px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,.7);
+  color:white;
+  padding:9px 16px;
+  border-radius:20px;
+  font-size:14px;
+  z-index:10;
+  white-space:nowrap;
+}
+</style>
 </head>
+
 <body>
 
-<div id="game">
-  <div id="scoreboard">
-    <span>ARIF FC</span>
-    <span id="score">0 - 0</span>
-    <span>RIVAL FC</span>
-  </div>
+<div id="score">ARIF FC 0 : 0 RIVAL FC</div>
 
-  <canvas id="field"></canvas>
+<canvas id="game"></canvas>
 
-  <div id="message">Drag the ball to pass or shoot!</div>
-</div>
+<div id="info">⚽ বলের ওপর চাপ দিয়ে টেনে ছেড়ে দে</div>
 
-<script src="game.js"></script>
-</body>
-</html>* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+<script>
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let W=0,H=0;
+
+function resize(){
+  W=window.innerWidth;
+  H=window.innerHeight;
+  canvas.width=W;
+  canvas.height=H;
 }
 
-body {
-  background: #111;
-  font-family: Arial, sans-serif;
-  overflow: hidden;
-}
-
-#game {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-}
-
-#field {
-  width: 100%;
-  height: 100%;
-  display: block;
-  background: #168a3a;
-  touch-action: none;
-}
-
-#scoreboard {
-  position: absolute;
-  top: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-
-  min-width: 280px;
-  padding: 10px 20px;
-
-  background: rgba(0, 0, 0, 0.75);
-  color: white;
-
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  border-radius: 12px;
-  font-weight: bold;
-  font-size: 16px;
-}
-
-#score {
-  font-size: 22px;
-  color: #ffd700;
-}
-
-#message {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-
-  padding: 10px 18px;
-  border-radius: 20px;
-
-  font-size: 14px;
-  text-align: center;
-  pointer-events: none;
-}const canvas = document.getElementById("field");
-const ctx = canvas.getContext("2d");
-
-let W, H;
-
-function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-}
-
-window.addEventListener("resize", resize);
+window.addEventListener("resize",resize);
 resize();
 
-let scoreA = 0;
-let scoreB = 0;
+let scoreA=0;
+let scoreB=0;
 
-const player = {
-  x: 250,
-  y: 300,
-  r: 22,
-  color: "#ffffff"
+const players=[
+  {x:.22,y:.50,color:"#ffffff",num:10},
+  {x:.38,y:.35,color:"#ffffff",num:7},
+  {x:.38,y:.65,color:"#ffffff",num:11},
+
+  {x:.68,y:.35,color:"#e53935",num:9},
+  {x:.70,y:.65,color:"#e53935",num:10},
+  {x:.82,y:.50,color:"#e53935",num:7}
+];
+
+const ball={
+  x:W*.28,
+  y:H*.50,
+  r:10,
+  vx:0,
+  vy:0
 };
 
-const teammate = {
-  x: 420,
-  y: 220,
-  r: 22,
-  color: "#ffffff"
-};
+let dragging=false;
+let startX=0;
+let startY=0;
+let aimX=0;
+let aimY=0;
 
-const opponent = {
-  x: 650,
-  y: 300,
-  r: 22,
-  color: "#e53935"
-};
+function pxX(v){
+  return v*W;
+}
 
-const ball = {
-  x: player.x + 35,
-  y: player.y,
-  r: 10,
-  vx: 0,
-  vy: 0
-};
+function pxY(v){
+  return 70+v*(H-100);
+}
 
-let dragging = false;
-let dragX = 0;
-let dragY = 0;
+function drawField(){
 
-function drawField() {
-  ctx.fillStyle = "#168a3a";
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle="#16883b";
+  ctx.fillRect(0,0,W,H);
 
-  ctx.strokeStyle = "rgba(255,255,255,0.8)";
-  ctx.lineWidth = 4;
+  const stripe=50;
 
-  // Outer lines
-  ctx.strokeRect(20, 70, W - 40, H - 100);
+  for(let x=0;x<W;x+=stripe*2){
+    ctx.fillStyle="rgba(255,255,255,.025)";
+    ctx.fillRect(x,70,stripe,H-100);
+  }
 
-  // Center line
+  ctx.strokeStyle="white";
+  ctx.lineWidth=4;
+
+  ctx.strokeRect(15,70,W-30,H-100);
+
   ctx.beginPath();
-  ctx.moveTo(W / 2, 70);
-  ctx.lineTo(W / 2, H - 30);
+  ctx.moveTo(W/2,70);
+  ctx.lineTo(W/2,H-30);
   ctx.stroke();
 
-  // Center circle
   ctx.beginPath();
-  ctx.arc(W / 2, H / 2, 75, 0, Math.PI * 2);
+  ctx.arc(W/2,H/2,75,0,Math.PI*2);
   ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(W/2,H/2,5,0,Math.PI*2);
+  ctx.fillStyle="white";
+  ctx.fill();
+
+  // Left penalty area
+  ctx.strokeRect(15,H/2-120,130,240);
+
+  // Right penalty area
+  ctx.strokeRect(W-145,H/2-120,130,240);
 
   // Goals
-  ctx.strokeRect(20, H / 2 - 70, 45, 140);
-  ctx.strokeRect(W - 65, H / 2 - 70, 45, 140);
+  ctx.strokeRect(0,H/2-65,15,130);
+  ctx.strokeRect(W-15,H/2-65,15,130);
+
 }
 
-function drawPlayer(p, number) {
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+function drawPlayer(p){
 
-  ctx.fillStyle = p.color;
+  const x=pxX(p.x);
+  const y=pxY(p.y);
+
+  ctx.beginPath();
+  ctx.arc(x,y,23,0,Math.PI*2);
+
+  ctx.fillStyle=p.color;
   ctx.fill();
 
-  ctx.strokeStyle = "#111";
-  ctx.lineWidth = 3;
+  ctx.lineWidth=3;
+  ctx.strokeStyle="#111";
   ctx.stroke();
 
-  ctx.fillStyle = "#111";
-  ctx.font = "bold 14px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(number, p.x, p.y);
+  ctx.fillStyle=p.color=="#ffffff"?"#111":"white";
+
+  ctx.font="bold 14px Arial";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+
+  ctx.fillText(p.num,x,y);
 }
 
-function drawBall() {
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+function drawBall(){
 
-  ctx.fillStyle = "white";
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+
+  ctx.fillStyle="white";
   ctx.fill();
 
-  ctx.strokeStyle = "#111";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-}
-
-function drawAim() {
-  if (!dragging) return;
-
-  ctx.beginPath();
-  ctx.moveTo(ball.x, ball.y);
-  ctx.lineTo(dragX, dragY);
-
-  ctx.strokeStyle = "#ffff00";
-  ctx.lineWidth = 5;
+  ctx.strokeStyle="#111";
+  ctx.lineWidth=2;
   ctx.stroke();
 
+  // black patches
+  ctx.fillStyle="#222";
+
   ctx.beginPath();
-  ctx.arc(dragX, dragY, 8, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffff00";
+  ctx.arc(ball.x-3,ball.y-3,2.5,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(ball.x+4,ball.y+3,2.5,0,Math.PI*2);
   ctx.fill();
 }
 
-function updateBall() {
-  ball.x += ball.vx;
-  ball.y += ball.vy;
+function drawAim(){
 
-  ball.vx *= 0.97;
-  ball.vy *= 0.97;
+  if(!dragging)return;
 
-  if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
-  if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
+  ctx.beginPath();
+  ctx.moveTo(ball.x,ball.y);
+  ctx.lineTo(aimX,aimY);
 
-  // Walls
-  if (ball.x < 30 || ball.x > W - 30) {
-    ball.vx *= -0.7;
-  }
+  ctx.strokeStyle="#ffe600";
+  ctx.lineWidth=6;
+  ctx.stroke();
 
-  if (ball.y < 80 || ball.y > H - 40) {
-    ball.vy *= -0.7;
-  }
+  ctx.beginPath();
+  ctx.arc(aimX,aimY,9,0,Math.PI*2);
 
-  // Goal detection
-  if (
-    ball.x > W - 25 &&
-    ball.y > H / 2 - 70 &&
-    ball.y < H / 2 + 70
-  ) {
-    scoreA++;
-    resetBall();
-  }
-
-  if (
-    ball.x < 25 &&
-    ball.y > H / 2 - 70 &&
-    ball.y < H / 2 + 70
-  ) {
-    scoreB++;
-    resetBall();
-  }
+  ctx.fillStyle="#ffe600";
+  ctx.fill();
 }
 
-function resetBall() {
-  ball.x = player.x + 35;
-  ball.y = player.y;
+function update(){
 
-  ball.vx = 0;
-  ball.vy = 0;
+  ball.x+=ball.vx;
+  ball.y+=ball.vy;
 
-  document.getElementById("score").textContent =
-    scoreA + " - " + scoreB;
+  ball.vx*=.985;
+  ball.vy*=.985;
+
+  if(Math.abs(ball.vx)<.05)ball.vx=0;
+  if(Math.abs(ball.vy)<.05)ball.vy=0;
+
+  // top bottom
+  if(ball.y<82){
+    ball.y=82;
+    ball.vy*=-.65;
+  }
+
+  if(ball.y>H-38){
+    ball.y=H-38;
+    ball.vy*=-.65;
+  }
+
+  // left
+  if(ball.x<20){
+
+    if(ball.y>H/2-65 && ball.y<H/2+65){
+
+      scoreB++;
+
+      updateScore();
+
+      resetBall();
+
+    }else{
+
+      ball.x=20;
+      ball.vx*=-.65;
+
+    }
+  }
+
+  // right
+  if(ball.x>W-20){
+
+    if(ball.y>H/2-65 && ball.y<H/2+65){
+
+      scoreA++;
+
+      updateScore();
+
+      resetBall();
+
+    }else{
+
+      ball.x=W-20;
+      ball.vx*=-.65;
+
+    }
+  }
+
+  // opponent movement
+  players[3].y += (ball.y/H-players[3].y)*.001;
+  players[4].y += (ball.y/H-players[4].y)*.001;
+
 }
 
-function gameLoop() {
+function resetBall(){
+
+  ball.x=W*.28;
+  ball.y=H*.50;
+
+  ball.vx=0;
+  ball.vy=0;
+}
+
+function updateScore(){
+
+  document.getElementById("score").innerText=
+  "ARIF FC "+scoreA+" : "+scoreB+" RIVAL FC";
+
+}
+
+function loop(){
+
   drawField();
 
-  updateBall();
+  update();
 
-  drawPlayer(player, 10);
-  drawPlayer(teammate, 7);
-  drawPlayer(opponent, 9);
+  for(let p of players){
+    drawPlayer(p);
+  }
 
   drawBall();
+
   drawAim();
 
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
-function getPointer(e) {
-  const rect = canvas.getBoundingClientRect();
+function pointerPosition(e){
 
-  return {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
+  const rect=canvas.getBoundingClientRect();
+
+  return{
+    x:e.clientX-rect.left,
+    y:e.clientY-rect.top
   };
+
 }
 
-canvas.addEventListener("pointerdown", function(e) {
-  const p = getPointer(e);
+canvas.addEventListener("pointerdown",function(e){
 
-  const distance = Math.hypot(
-    p.x - ball.x,
-    p.y - ball.y
+  const p=pointerPosition(e);
+
+  const d=Math.hypot(
+    p.x-ball.x,
+    p.y-ball.y
   );
 
-  if (distance < 40) {
-    dragging = true;
-    dragX = p.x;
-    dragY = p.y;
+  if(d<45){
+
+    dragging=true;
+
+    startX=p.x;
+    startY=p.y;
+
+    aimX=p.x;
+    aimY=p.y;
+
+    canvas.setPointerCapture(e.pointerId);
+
   }
+
 });
 
-canvas.addEventListener("pointermove", function(e) {
-  if (!dragging) return;
+canvas.addEventListener("pointermove",function(e){
 
-  const p = getPointer(e);
+  if(!dragging)return;
 
-  dragX = p.x;
-  dragY = p.y;
+  const p=pointerPosition(e);
+
+  aimX=p.x;
+  aimY=p.y;
+
 });
 
-canvas.addEventListener("pointerup", function() {
-  if (!dragging) return;
+canvas.addEventListener("pointerup",function(e){
 
-  const dx = ball.x - dragX;
-  const dy = ball.y - dragY;
+  if(!dragging)return;
 
-  const power = Math.min(
-    Math.hypot(dx, dy) / 8,
-    18
-  );
+  const dx=ball.x-aimX;
+  const dy=ball.y-aimY;
 
-  ball.vx = dx / Math.max(Math.hypot(dx, dy), 1) * power;
-  ball.vy = dy / Math.max(Math.hypot(dx, dy), 1) * power;
+  const distance=Math.hypot(dx,dy);
 
-  dragging = false;
+  if(distance>10){
+
+    const power=Math.min(distance/9,20);
+
+    ball.vx=(dx/distance)*power;
+    ball.vy=(dy/distance)*power;
+
+  }
+
+  dragging=false;
+
 });
 
-gameLoop();
+canvas.addEventListener("pointercancel",function(){
+
+  dragging=false;
+
+});
+
+loop();
+
+</script>
+
+</body>
+</html>
