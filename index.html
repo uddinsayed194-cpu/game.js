@@ -1,16 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ARIF FOOTBALL</title>
 
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-
 html,body{
-width:100%;
-height:100%;
+margin:0;
+padding:0;
 overflow:hidden;
 background:#111;
 font-family:Arial;
@@ -18,36 +16,31 @@ font-family:Arial;
 
 canvas{
 display:block;
-width:100%;
-height:100%;
 touch-action:none;
 }
 
 #score{
 position:fixed;
-top:12px;
+top:10px;
 left:50%;
 transform:translateX(-50%);
-background:rgba(0,0,0,.8);
+background:#000c;
 color:white;
-padding:10px 20px;
-border-radius:15px;
+padding:10px 25px;
+border-radius:12px;
 font-size:20px;
-font-weight:bold;
-z-index:5;
+z-index:10;
 }
 
-#help{
+#control{
 position:fixed;
 bottom:15px;
-left:50%;
-transform:translateX(-50%);
-background:rgba(0,0,0,.75);
+left:15px;
 color:white;
-padding:9px 15px;
-border-radius:20px;
-z-index:5;
-font-size:13px;
+background:#000b;
+padding:12px;
+border-radius:10px;
+z-index:10;
 }
 </style>
 </head>
@@ -55,7 +48,11 @@ font-size:13px;
 <body>
 
 <div id="score">ARIF FC 0 : 0 RIVAL</div>
-<div id="help">Player-এর কাছে বল এলে টেনে Pass / Shoot কর</div>
+
+<div id="control">
+W A S D / Arrow = Player Move<br>
+Ball টেনে Pass / Shoot
+</div>
 
 <canvas id="game"></canvas>
 
@@ -64,230 +61,183 @@ font-size:13px;
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
-let W,H;
+let W=innerWidth;
+let H=innerHeight;
 
-function resize(){
+canvas.width=W;
+canvas.height=H;
+
+window.onresize=()=>{
 W=innerWidth;
 H=innerHeight;
 canvas.width=W;
 canvas.height=H;
-}
-
-resize();
-addEventListener("resize",resize);
-
-
-/* =========================
-   GAME DATA
-========================= */
-
-let scoreA=0;
-let scoreB=0;
-
-const blue=[
-{x:.20,y:.50,n:10},
-{x:.34,y:.30,n:7},
-{x:.34,y:.70,n:11},
-{x:.45,y:.50,n:8}
-];
-
-const red=[
-{x:.70,y:.30,n:9},
-{x:.70,y:.70,n:11},
-{x:.82,y:.50,n:7},
-{x:.92,y:.50,n:1}
-];
-
-let controlled=0;
-
-const ball={
-x:0,
-y:0,
-vx:0,
-vy:0,
-r:9
 };
 
-function reset(){
 
-ball.x=blue[controlled].x*W;
-ball.y=70+blue[controlled].y*(H-100);
+/* PLAYER */
 
-ball.vx=0;
-ball.vy=0;
-
-}
-
-reset();
+let me={
+x:W*.25,
+y:H*.5,
+speed:4,
+r:22
+};
 
 
-/* =========================
-   FIELD
-========================= */
+/* TEAMMATES */
 
-function field(){
-
-ctx.fillStyle="#15863a";
-ctx.fillRect(0,0,W,H);
-
-ctx.strokeStyle="white";
-ctx.lineWidth=4;
-
-ctx.strokeRect(15,70,W-30,H-100);
-
-ctx.beginPath();
-ctx.moveTo(W/2,70);
-ctx.lineTo(W/2,H-30);
-ctx.stroke();
-
-ctx.beginPath();
-ctx.arc(W/2,H/2,70,0,Math.PI*2);
-ctx.stroke();
-
-ctx.beginPath();
-ctx.arc(W/2,H/2,5,0,Math.PI*2);
-ctx.fillStyle="white";
-ctx.fill();
+let teammates=[
+{x:W*.38,y:H*.35,r:22},
+{x:W*.38,y:H*.65,r:22},
+{x:W*.48,y:H*.5,r:22}
+];
 
 
-/* penalty */
+/* OPPONENT */
 
-ctx.strokeRect(15,H/2-115,125,230);
-
-ctx.strokeRect(W-140,H/2-115,125,230);
-
-
-/* goal */
-
-ctx.strokeRect(0,H/2-65,15,130);
-
-ctx.strokeRect(W-15,H/2-65,15,130);
-
-}
+let enemies=[
+{x:W*.68,y:H*.35,r:22},
+{x:W*.68,y:H*.65,r:22},
+{x:W*.78,y:H*.5,r:22}
+];
 
 
-/* =========================
-   PLAYER
-========================= */
+/* GOALKEEPER */
 
-function player(p,color){
-
-let x=p.x*W;
-let y=70+p.y*(H-100);
-
-ctx.beginPath();
-ctx.arc(x,y,22,0,Math.PI*2);
-
-ctx.fillStyle=color;
-ctx.fill();
-
-ctx.strokeStyle="#111";
-ctx.lineWidth=3;
-ctx.stroke();
-
-ctx.fillStyle=color=="#1976ff"?"white":"white";
-
-ctx.font="bold 13px Arial";
-ctx.textAlign="center";
-ctx.textBaseline="middle";
-
-ctx.fillText(p.n,x,y);
-
-}
+let keeper={
+x:W-45,
+y:H*.5,
+r:25,
+speed:3
+};
 
 
-/* =========================
-   BALL
-========================= */
+/* BALL */
 
-function drawBall(){
+let ball={
+x:me.x+30,
+y:me.y,
+r:10,
+vx:0,
+vy:0
+};
 
-ctx.beginPath();
-ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
 
-ctx.fillStyle="white";
-ctx.fill();
+/* SCORE */
 
-ctx.strokeStyle="#111";
-ctx.lineWidth=2;
-ctx.stroke();
+let home=0;
+let away=0;
+
+
+/* KEYBOARD */
+
+let keys={};
+
+document.addEventListener("keydown",e=>{
+keys[e.key.toLowerCase()]=true;
+});
+
+document.addEventListener("keyup",e=>{
+keys[e.key.toLowerCase()]=false;
+});
+
+
+/* PLAYER MOVEMENT */
+
+function moveMe(){
+
+let dx=0;
+let dy=0;
+
+if(keys["w"] || keys["arrowup"]) dy-=1;
+if(keys["s"] || keys["arrowdown"]) dy+=1;
+if(keys["a"] || keys["arrowleft"]) dx-=1;
+if(keys["d"] || keys["arrowright"]) dx+=1;
+
+if(dx!==0 || dy!==0){
+
+let len=Math.hypot(dx,dy);
+
+dx/=len;
+dy/=len;
+
+me.x+=dx*me.speed;
+me.y+=dy*me.speed;
 
 }
 
 
-/* =========================
-   PLAYER AI MOVEMENT
-========================= */
+/* FIELD LIMIT */
 
-function movePlayers(){
+me.x=Math.max(40,Math.min(W-40,me.x));
+me.y=Math.max(100,Math.min(H-40,me.y));
 
-/* blue players */
 
-blue.forEach((p,i)=>{
+/* BALL FOLLOWS PLAYER */
 
-let targetX=p.x*W;
-let targetY=70+p.y*(H-100);
+let distance=Math.hypot(
+ball.x-me.x,
+ball.y-me.y
+);
 
-if(i!==controlled){
+if(distance<45 && Math.abs(ball.vx)<1){
 
-targetX=ball.x + (i%2===0 ? -100 : -160);
-
-targetY=70+
-Math.max(
-.15,
-Math.min(
-.85,
-(ball.y-70)/(H-100)+(i-2)*.12
-)
-)*(H-100);
+ball.x=me.x+25;
+ball.y=me.y;
 
 }
 
-p.x += (targetX/W-p.x)*0.008;
+}
 
-p.y += ((targetY-70)/(H-100)-p.y)*0.008;
+
+/* AI */
+
+function moveAI(){
+
+/* teammates */
+
+teammates.forEach((p,i)=>{
+
+let targetX=ball.x-100;
+
+let targetY=ball.y+(i===0?-100:i===1?100:0);
+
+p.x+=(targetX-p.x)*.015;
+p.y+=(targetY-p.y)*.015;
 
 });
 
 
-/* red defenders */
+/* enemies */
 
-red.forEach((p,i)=>{
+enemies.forEach((p,i)=>{
 
-let targetX=p.x*W;
-let targetY=70+p.y*(H-100);
+let targetX=ball.x+80;
 
-if(i<3){
+let targetY=ball.y+(i-1)*100;
 
-targetX=ball.x+80;
-
-targetY=ball.y+(i-1)*90;
-
-}
-
-p.x+=(targetX/W-p.x)*0.006;
-
-p.y+=((targetY-70)/(H-100)-p.y)*0.006;
+p.x+=(targetX-p.x)*.012;
+p.y+=(targetY-p.y)*.012;
 
 });
 
 
 /* goalkeeper */
 
-let g=red[3];
+keeper.y+=(ball.y-keeper.y)*.04;
 
-g.x=.94;
-
-g.y+=(Math.max(.25,Math.min(.75,(ball.y-70)/(H-100)))-g.y)*.03;
+keeper.y=Math.max(
+H*.5-100,
+Math.min(H*.5+100,keeper.y)
+);
 
 }
 
 
-/* =========================
-   BALL PHYSICS
-========================= */
+/* BALL */
 
-function physics(){
+function updateBall(){
 
 ball.x+=ball.vx;
 ball.y+=ball.vy;
@@ -296,116 +246,226 @@ ball.vx*=.985;
 ball.vy*=.985;
 
 
-/* top bottom */
+/* walls */
 
-if(ball.y<82){
+if(ball.y<80){
 
-ball.y=82;
+ball.y=80;
 ball.vy*=-.7;
 
 }
 
-if(ball.y>H-38){
+if(ball.y>H-30){
 
-ball.y=H-38;
+ball.y=H-30;
 ball.vy*=-.7;
 
 }
 
 
-/* left */
-
-if(ball.x<20){
+/* GOAL */
 
 if(
-ball.y>H/2-65 &&
-ball.y<H/2+65
+ball.x>W-10 &&
+ball.y>H/2-70 &&
+ball.y<H/2+70
 ){
 
-scoreB++;
+home++;
+
 updateScore();
+
 reset();
 
-}else{
-
-ball.x=20;
-ball.vx*=-.7;
-
 }
 
-}
-
-
-/* right */
-
-if(ball.x>W-20){
 
 if(
-ball.y>H/2-65 &&
-ball.y<H/2+65
+ball.x<10 &&
+ball.y>H/2-70 &&
+ball.y<H/2+70
 ){
 
-scoreA++;
+away++;
+
 updateScore();
+
 reset();
 
-}else{
+}
 
-ball.x=W-20;
-ball.vx*=-.7;
+
+/* goalkeeper */
+
+let d=Math.hypot(
+ball.x-keeper.x,
+ball.y-keeper.y
+);
+
+if(d<keeper.r+ball.r){
+
+ball.vx=-Math.abs(ball.vx)-4;
 
 }
 
 }
 
 
-/* goalkeeper collision */
+function reset(){
 
-let g=red[3];
+ball.x=me.x+30;
+ball.y=me.y;
 
-let gx=g.x*W;
-let gy=70+g.y*(H-100);
-
-let d=Math.hypot(ball.x-gx,ball.y-gy);
-
-if(d<35){
-
-ball.vx*=-.9;
-ball.vy+=(ball.y-gy)*.04;
+ball.vx=0;
+ball.vy=0;
 
 }
 
 
-/* player ball control */
+function updateScore(){
 
-blue.forEach((p,i)=>{
-
-let px=p.x*W;
-let py=70+p.y*(H-100);
-
-let d=Math.hypot(ball.x-px,ball.y-py);
-
-if(d<30 && Math.abs(ball.vx)<3){
-
-ball.x=px+25;
-ball.y=py;
-
-}
-
-});
+document.getElementById("score").innerText=
+"ARIF FC "+home+" : "+away+" RIVAL";
 
 }
 
 
-/* =========================
-   DRAG SYSTEM
-========================= */
+/* FIELD */
+
+function drawField(){
+
+ctx.fillStyle="#168b3d";
+ctx.fillRect(0,0,W,H);
+
+ctx.strokeStyle="white";
+ctx.lineWidth=4;
+
+ctx.strokeRect(
+20,
+70,
+W-40,
+H-100
+);
+
+
+/* center */
+
+ctx.beginPath();
+
+ctx.moveTo(W/2,70);
+ctx.lineTo(W/2,H-30);
+
+ctx.stroke();
+
+
+ctx.beginPath();
+
+ctx.arc(W/2,H/2,75,0,Math.PI*2);
+
+ctx.stroke();
+
+
+/* penalty */
+
+ctx.strokeRect(
+20,
+H/2-110,
+120,
+220
+);
+
+ctx.strokeRect(
+W-140,
+H/2-110,
+120,
+220
+);
+
+
+/* goals */
+
+ctx.strokeRect(
+0,
+H/2-70,
+20,
+140
+);
+
+ctx.strokeRect(
+W-20,
+H/2-70,
+20,
+140
+);
+
+}
+
+
+/* PLAYER DRAW */
+
+function drawPlayer(p,color,num){
+
+ctx.beginPath();
+
+ctx.arc(
+p.x,
+p.y,
+p.r,
+0,
+Math.PI*2
+);
+
+ctx.fillStyle=color;
+ctx.fill();
+
+ctx.strokeStyle="#111";
+ctx.lineWidth=3;
+ctx.stroke();
+
+ctx.fillStyle="white";
+ctx.font="bold 13px Arial";
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+
+ctx.fillText(
+num,
+p.x,
+p.y
+);
+
+}
+
+
+/* BALL DRAW */
+
+function drawBall(){
+
+ctx.beginPath();
+
+ctx.arc(
+ball.x,
+ball.y,
+ball.r,
+0,
+Math.PI*2
+);
+
+ctx.fillStyle="white";
+ctx.fill();
+
+ctx.strokeStyle="#111";
+ctx.stroke();
+
+}
+
+
+/* DRAG */
 
 let dragging=false;
 let aimX=0;
 let aimY=0;
 
-function pos(e){
+function pointer(e){
 
 let r=canvas.getBoundingClientRect();
 
@@ -416,9 +476,10 @@ y:e.clientY-r.top
 
 }
 
-canvas.addEventListener("pointerdown",e=>{
 
-let p=pos(e);
+canvas.onpointerdown=e=>{
+
+let p=pointer(e);
 
 let d=Math.hypot(
 p.x-ball.x,
@@ -436,58 +497,57 @@ canvas.setPointerCapture(e.pointerId);
 
 }
 
-});
+};
 
 
-canvas.addEventListener("pointermove",e=>{
+canvas.onpointermove=e=>{
 
 if(!dragging)return;
 
-let p=pos(e);
+let p=pointer(e);
 
 aimX=p.x;
 aimY=p.y;
 
-});
+};
 
 
-canvas.addEventListener("pointerup",e=>{
+canvas.onpointerup=e=>{
 
 if(!dragging)return;
 
 let dx=ball.x-aimX;
 let dy=ball.y-aimY;
 
-let power=Math.hypot(dx,dy);
+let len=Math.hypot(dx,dy);
 
-if(power>10){
+if(len>10){
 
-power=Math.min(power/8,22);
+let power=Math.min(len/7,22);
 
-ball.vx=dx/Math.hypot(dx,dy)*power;
-ball.vy=dy/Math.hypot(dx,dy)*power;
+ball.vx=dx/len*power;
+ball.vy=dy/len*power;
 
 }
 
 dragging=false;
 
-});
+};
 
 
-/* =========================
-   AIM LINE
-========================= */
+/* AIM LINE */
 
-function aim(){
+function drawAim(){
 
 if(!dragging)return;
 
 ctx.beginPath();
 
 ctx.moveTo(ball.x,ball.y);
+
 ctx.lineTo(aimX,aimY);
 
-ctx.strokeStyle="#ffe600";
+ctx.strokeStyle="yellow";
 ctx.lineWidth=5;
 
 ctx.stroke();
@@ -495,43 +555,39 @@ ctx.stroke();
 }
 
 
-/* =========================
-   SCORE
-========================= */
+/* GAME */
 
-function updateScore(){
+function game(){
 
-document.getElementById("score").innerText=
-"ARIF FC "+scoreA+" : "+scoreB+" RIVAL";
+drawField();
 
-}
+moveMe();
 
+moveAI();
 
-/* =========================
-   GAME LOOP
-========================= */
+updateBall();
 
-function loop(){
+teammates.forEach((p,i)=>{
+drawPlayer(p,"#1976ff",[7,11,8][i]);
+});
 
-field();
+drawPlayer(me,"#1976ff",10);
 
-movePlayers();
+enemies.forEach((p,i)=>{
+drawPlayer(p,"#e53935",[9,11,7][i]);
+});
 
-physics();
-
-blue.forEach(p=>player(p,"#1976ff"));
-
-red.forEach(p=>player(p,"#e53935"));
+drawPlayer(keeper,"#ff9800",1);
 
 drawBall();
 
-aim();
+drawAim();
 
-requestAnimationFrame(loop);
+requestAnimationFrame(game);
 
 }
 
-loop();
+game();
 
 </script>
 
